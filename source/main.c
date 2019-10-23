@@ -55,36 +55,64 @@ void TimerSet( unsigned long M) {
 	_avr_timer_cntcurr = _avr_timer_M;
 }
 
-enum States { INIT, FIRST, SECOND, THIRD, WAIT } state;
+enum States { FIRST, SECOND, THIRD, WAIT_P, WAIT_R } state;
 
 unsigned char outputB = 0x00;
-unsigned char last_LED = 0x00;
+unsigned char dir_flag = 0x00;
+unsigned char inputA = 0x00;
 
 void SM(){
 	
 	switch(state){  //transitions
 		
-		case INIT:
-			outputB = 0x01;
-			state = FIRST;
-
 		case FIRST:
-			last_LED = 1;
-			state = SECOND;
-			break;			
+			if(inputA == 0x01) {
+				state = WAIT_P;
+			}
+			else { state = SECOND; }
+			break;
+			
 		case SECOND:
-			if( last_LED = 1){
+			if(inputA == 0x01) {
+                                state = WAIT_P;
+                        }
+                        else {
+			if( dir_flag == 0){
 				state = THIRD;
 			}
-			if( last_LED = 0){
+			if( dir_flag == 1){
 				state = FIRST;
+			}
 			}
 			break;
 		case THIRD:
-			last_LED = 0;
-			state = SECOND;
+			if(inputA == 0x01) {
+                                state = WAIT_P;
+                        }
+                        else { state = SECOND; }
 			break;
-		case WAIT:
+		case WAIT_P:
+			if(inputA == 0x01) {
+                                state = WAIT_P;
+                        }
+                        else if(inputA == 0x00) {
+				state = WAIT_R;
+			}	
+			break;
+		
+		case WAIT_R:
+			if(inputA == 0x00) {
+                                state = WAIT_R;
+                        }
+                        else if(inputA == 0x01 && outputB == 0x01) {
+                                state = FIRST;
+                        }
+			else if(inputA == 0x01 && outputB == 0x02) {
+                                state = SECOND;
+                        }
+			else if(inputA == 0x01 && outputB == 0x04) {
+                                state = THIRD;
+                        }
 			break;
 
 		default:
@@ -93,39 +121,38 @@ void SM(){
 	}
 
 	switch(state){   //actions
-		
-		case INIT: 
-			outputB = 0x01;
-			break;
 
 		case FIRST:
-			last_LED = 1;
+			dir_flag = 0;
 			outputB = 0x01;
 			break;			
 		case SECOND:
 			outputB = 0x02;
 			break;
 		case THIRD:
-			last_LED = 0;
+			dir_flag = !dir_flag;
 			outputB = 0x04;
+			break;	
+		case WAIT_P:
 			break;
-		case WAIT: 
-			break;
+		case  WAIT_R;
+			break; 
 
 	}
 }
 
 
 int main(void) {
-	DDRB = 0xFF; PORTB = 0x00; // Configure port B's 7 most significant pins as
+	DDRB = 0xFF; PORTB = 0x00; // Configure port B's pins as outputs
+	DDRA = 0x00; PORTA = 0xFF; // Configure port A's pins as inputs
 	TimerSet(1000);
 	TimerOn();
-	//unsigned char tmpB = 0x00;
 
     	enum States state = FIRST;
 
 	while (1) {
-		//inputA = PINA;
+		inputA = PINA;
+
 		SM();
 		PORTB = outputB;
 		while(!TimerFlag);
