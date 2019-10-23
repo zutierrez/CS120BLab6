@@ -1,8 +1,8 @@
 /*	Author: zguti001
  *      Partner(s) Name: 
  *	Lab Section: 023
- *	Assignment: Lab #6  Exercise #2
- *	Exercise Description: Reflex Game
+ *	Assignment: Lab #6  Exercise #1
+ *	Exercise Description: LED Switching
  *
  *	I acknowledge all content contained herein, excluding template or example
  *	code, is my own original work.
@@ -55,66 +55,30 @@ void TimerSet( unsigned long M) {
 	_avr_timer_cntcurr = _avr_timer_M;
 }
 
-enum States { FIRST, SECOND, THIRD, WAIT_P, WAIT_R } state;
+enum States { FIRST, SECOND, THIRD} state;
 
 unsigned char outputB = 0x00;
 unsigned char dir_flag = 0x00;
-unsigned char inputA = 0x00;
 
 void SM(){
 	
 	switch(state){  //transitions
 		
 		case FIRST:
-			if(inputA == 0x01) {
-				state = WAIT_P;
-			}
-			else { state = SECOND; }
+			state = SECOND; 
 			break;
 			
 		case SECOND:
-			if(inputA == 0x01) {
-                                state = WAIT_P;
-                        }
-                        else {
 			if( dir_flag == 0){
 				state = THIRD;
 			}
 			if( dir_flag == 1){
 				state = FIRST;
 			}
-			}
 			break;
 
 		case THIRD:
-			if(inputA == 0x01) {
-                                state = WAIT_P;
-                        }
-                        else { state = SECOND; }
-			break;
-		
-		case WAIT_P:
-			if(inputA == 0x01) {
-                                state = WAIT_P;
-                        }
-                        else if(inputA == 0x00) {
-				state = WAIT_R;
-			}	
-			break;
-		
-		case WAIT_R:
-			if(inputA == 0x00) {
-                                state = WAIT_R;
-                        }
-                        if(inputA == 0x01 && outputB == 0x01) {
-                                state = FIRST;
-                        }
-			if(inputA == 0x01 && outputB == 0x02) {
-                                state = SECOND;
-                        }
-			if(inputA == 0x01 && outputB == 0x04) {
-                                state = THIRD;
-                        }
+			state = SECOND;
 			break;
 
 		default:
@@ -138,27 +102,18 @@ void SM(){
 			outputB = 0x04;
 			break;	
 
-		case WAIT_P:
-			break;
-
-		case  WAIT_R:
-			break; 
-
 	}
 }
 
 
 int main(void) {
 	DDRB = 0xFF; PORTB = 0x00; // Configure port B's pins as outputs
-	DDRA = 0x00; PORTA = 0xFF; // Configure port A's pins as inputs
-	TimerSet(300);
+	TimerSet(1000);
 	TimerOn();
 
     	enum States state = FIRST;
 
 	while (1) {
-		inputA = PINA;
-		inputA = ~inputA;
 		SM();
 		PORTB = outputB;
 		while(!TimerFlag){};
