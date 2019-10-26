@@ -1,18 +1,16 @@
-/*	Author: zguti001
- *      Partner(s) Name: 
+/*	Author: Zion Gutierrez, zguti001
+ *      Partner(s) Name: none
  *	Lab Section: 023
- *	Assignment: Lab #6  Exercise #2
- *	Exercise Description: Reflex Game
+ *	Assignment: Lab #4 Exercise #2
+ *	Exercise Description: INCREMENTER AND DECREMENTER 
  *
  *	I acknowledge all content contained herein, excluding template or example
  *	code, is my own original work.
  */
-#include <avr/io.h>
-#include <avr/interrupt.h>
 
-#ifdef _SIMULATE_
-#include "simAVRHeader.h"
-#endif
+#include <avr/io.h>
+#include "io.h"
+#include <avr/interrupt.h>
 
 volatile unsigned char TimerFlag = 0; 
 
@@ -55,115 +53,169 @@ void TimerSet( unsigned long M) {
 	_avr_timer_cntcurr = _avr_timer_M;
 }
 
-enum States { FIRST, SECOND, THIRD, WAIT_P, WAIT_R } state;
 
-unsigned char outputB = 0x00;
-unsigned char dir_flag = 0x00;
+enum States { WAIT , PRESS_INCREMENT, RELEASE_INCREMENT, PRESS_INCREMENT_HOLD, PRESS_DECREMENT, RELEASE_DECREMENT, PRESS_DECREMENT_HOLD, PRESS_RESET, RELEASE_RESET } state;
+
 unsigned char inputA = 0x00;
+unsigned char cnt = 0x00;
+unsigned char holdcnt = 0x00;
 
-void SM(){
+void SM()
+{
+	switch(state) {      //TRANSITIONS
 	
-	switch(state){  //transitions
+		case WAIT:
+	       		if ( inputA == 0x01 ){
+				if( cnt < 9){
+					state = PRESS_INCREMENT;
+				}
+	       		}
+			else if( inputA == 0x02 ){
+				if( cnt > 0 ){
+					state = PRESS_DECREMENT;
+				}
+			}
+			else if( inputA == 0x03 ){
+				cnt = 0x00;
+				state = PRESS_RESET;
+			}
+			else { state = WAIT; }
+	       		break;
+
+	    	case PRESS_INCREMENT:
+			if( inputA == 0x01 && holdcnt < 30){
+				++holdcnt;
+				state = PRESS_INCREMENT;
+			}
+			if( inputA = 0x01 && holdcnt > 30){
+				if ( cnt < 9){
+					state = PRESS_INCREMENT_HOLD;
+					holdcnt = 0;
+				}
+			} 
+			else if( inputA == 0x03 ){
+				cnt = 0x00;
+				state = PRESS_RESET;
+			}
+			else if( inputA == 0x00) {
+				 state = RELEASE_INCREMENT; }
+	       		break;
 		
-		case FIRST:
-			if(inputA == 0x01) {
-				state = WAIT_P;
-			}
-			else { state = SECOND; }
+		case PRESS_INCREMENT_HOLD:
+			state = PRESS_INCREMENT;
 			break;
-			
-		case SECOND:
-			if(inputA == 0x01) {
-                                state = WAIT_P;
-                        }
-                        else {
-			if( dir_flag == 0){
-				state = THIRD;
-			}
-			if( dir_flag == 1){
-				state = FIRST;
-			}
-			}
+	    	
+		case RELEASE_INCREMENT: 
+			++cnt;
+			LCD_ClearScreen();
+			LCD_WriteData(cnt + '0');
+			state = WAIT;
 			break;
 
-		case THIRD:
-			if(inputA == 0x01) {
-                                state = WAIT_P;
-                        }
-                        else { state = SECOND; }
+	   	case PRESS_DECREMENT:
+			if( inputA == 0x02 && holdcnt < 30){
+				++holdcnt;
+				state = PRESS_DECREMENT;
+			}
+			if( inputA = 0x02 && holdcnt > 30){
+				if ( cnt > 0){
+					state = PRESS_DECREMENT_HOLD;
+					holdcnt = 0;
+				} 
+			}
+			else if( inputA == 0x03 ){
+				cnt = 0x00;
+				state = PRESS_RESET;
+			}
+			else if( inputA == 0x00) {
+				 state = RELEASE_DECREMENT; }
 			break;
-		
-		case WAIT_P:
-			if(inputA == 0x01) {
-                                state = WAIT_P;
-                        }
-                        else if(inputA == 0x00) {
-				state = WAIT_R;
-			}	
+
+		case PRESS_DECREMENT_HOLD: 	
+			state = PRESS_DECREMENT;
+			break; 
+
+		case RELEASE_DECREMENT:
+			--cnt;
+			LCD_ClearScreen();
+			LCD_WriteData(cnt + '0');
+			state = WAIT;
 			break;
-		
-		case WAIT_R:
-			if(inputA == 0x00) {
-                                state = WAIT_R;
-                        }
-                        if(inputA == 0x01 && outputB == 0x01) {
-                                state = FIRST;
-                        }
-			if(inputA == 0x01 && outputB == 0x02) {
-                                state = SECOND;
-                        }
-			if(inputA == 0x01 && outputB == 0x04) {
-                                state = THIRD;
-                        }
+
+		case PRESS_RESET:
+			if( inputA == 0x03 ){
+				cnt = 0x00;
+				LCD_ClearScreen();
+				LCD_WriteData(cnt + '0');
+				state = PRESS_RESET; }
+			else if (inputA == 0x00){
+				state = RELEASE_RESET; }
+			break;
+
+		case RELEASE_RESET:
+			cnt = 0x00;
+			state = WAIT;
 			break;
 
 		default:
-			state = FIRST;
-			break;			
-	}
+	        	state = WAIT;
+	       		break;	
+		}	
 
-	switch(state){   //actions
-
-		case FIRST:
-			dir_flag = 0;
-			outputB = 0x01;
-			break;	
-		
-		case SECOND:
-			outputB = 0x02;
+	switch(state) {      //ACTIONS
+	    
+	    	case WAIT:		
 			break;
-
-		case THIRD:
-			dir_flag = !dir_flag;
-			outputB = 0x04;
-			break;	
-
-		case WAIT_P:
+	    	case PRESS_INCREMENT:
 			break;
-
-		case  WAIT_R:
-			break; 
-
-	}
+		case RELEASE_INCREMENT:
+			break;
+		case PRESS_INCREMENT_HOLD:
+			++cnt;
+			LCD_ClearScreen();
+			LCD_WriteData(cnt + '0');
+			break;
+		case PRESS_DECREMENT:
+			break;
+		case RELEASE_DECREMENT:
+			break;
+		case PRESS_DECREMENT_HOLD:
+			--cnt;
+			LCD_ClearScreen();
+			LCD_WriteData(cnt + '0');
+			break;
+		case PRESS_RESET:
+			break;
+		case RELEASE_RESET:
+			break;
+		}
 }
-
 
 int main(void) {
-	DDRB = 0xFF; PORTB = 0x00; // Configure port B's pins as outputs
-	DDRA = 0x00; PORTA = 0xFF; // Configure port A's pins as inputs
-	TimerSet(300);
+	DDRA = 0x00; PORTA = 0xFF; // 
+     	DDRC = 0xFF; PORTC = 0x00; // 
+	DDRD = 0xFF; PORTD = 0x00;
+	
+	TimerSet(500);
 	TimerOn();
 
-    	enum States state = FIRST;
+	enum States state = WAIT;
+	LCD_init();
+	LCD_WriteData('0');
 
-	while (1) {
-		inputA = PINA;
-		inputA = ~inputA;
-		SM();
-		PORTB = outputB;
-		while(!TimerFlag){};
-		TimerFlag = 0;
+	while(1){ 
+	//INPUT:
+	inputA = PINA;
+	inputA = ~inputA;
+	
+	SM();
 
-	}
-    return 1;
+	}  
+
+	return 1;
 }
+
+
+
+
+
