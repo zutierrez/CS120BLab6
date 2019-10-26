@@ -1,4 +1,4 @@
-# Test file for CS120BLab6
+# Test file for CS120BLab7
 
 
 # commands.gdb provides the following functions for ease:
